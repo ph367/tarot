@@ -131,20 +131,29 @@
           <article class="taxonomy-card astrology-tree">
             <header><span>☉</span><div><small>KNOWLEDGE / 01</small><h2>占星</h2></div></header>
             <div class="topic-cloud">
-              <button>行星</button><button>星座</button><button>宫位</button><button>相位</button><button>宫主星</button>
-              <button>本命盘</button><button>行运</button><button>推运</button><button>合盘</button>
-              <button class="wide">职业 / 财富 / 关系专题</button>
+              <button data-knowledge-category="行星">行星</button><button data-knowledge-category="星座">星座</button><button data-knowledge-category="宫位">宫位</button><button data-knowledge-category="相位">相位</button><button data-knowledge-category="尊贵与接纳">互溶 / 接纳</button>
+              <button data-knowledge-category="综合技法">宫主星 / 行运 / 推运 / 合盘</button><button data-knowledge-category="星盘格局">星盘格局</button>
+              <button class="wide" data-knowledge-category="综合技法">职业 / 财富 / 才能 / 关系专题</button>
             </div>
           </article>
           <article class="taxonomy-card tarot-tree">
             <header><span>✦</span><div><small>KNOWLEDGE / 02</small><h2>塔罗</h2></div></header>
             <div class="topic-cloud">
-              <button>78张牌</button><button>正位</button><button>逆位</button><button>元素</button><button>数字</button>
-              <button>宫廷牌</button><button>牌阵</button><button>原型</button><button>荣格心理学</button>
-              <button class="wide">不同问题类型的解读框架</button>
+              <button data-knowledge-category="大阿卡纳">22张大牌</button><button data-knowledge-category="小阿卡纳">56张小牌</button><button data-knowledge-category="解读框架">正位 / 逆位</button><button data-knowledge-category="元素">元素</button>
+              <button data-knowledge-category="小阿卡纳">数字 / 宫廷牌</button><button data-knowledge-category="解读框架">牌阵 / 原型 / 荣格心理学</button>
+              <button class="wide" data-knowledge-category="解读框架">不同问题类型的解读框架</button>
             </div>
           </article>
         </div>
+        <div class="section-heading compact"><div><p class="eyebrow">STRUCTURED KNOWLEDGE</p><h2>完整知识卡库</h2></div><small class="flow-caption"><b id="knowledgeCardCount">0</b> 张五层知识卡</small></div>
+        <div class="knowledge-toolbar">
+          <input id="knowledgeSearch" type="search" placeholder="搜索行星、牌名、机制、判断条件…">
+          <select id="knowledgeSystem"><option>全部体系</option><option>占星</option><option>塔罗</option><option>数字命理</option></select>
+          <select id="knowledgeCategory"><option>全部分类</option></select>
+          <button class="secondary-button" id="resetKnowledgeFilter">重置</button>
+        </div>
+        <div class="knowledge-card-grid" id="knowledgeCardGrid"></div>
+        <div class="knowledge-empty hidden" id="knowledgeEmpty">没有找到相关知识卡。</div>
         <div class="section-heading compact"><div><p class="eyebrow">FIVE-LAYER NOTE</p><h2>五层知识卡</h2></div><small class="flow-caption">口述学习心得后由 AI 生成</small></div>
         <article class="knowledge-note">
           <header><div class="planet-symbol">♄</div><div><small>占星 · 行星</small><h2>土星 Saturn</h2><p>不是背诵关键词，而是记录它如何在心理与现实中运作。</p></div><span class="note-state">持续验证中</span></header>
@@ -322,6 +331,7 @@
     </div>
   </div>
   <div class="ios-install-tip hidden" id="iosInstallTip"><button data-close-install>×</button><strong>安装“玄枢”到 iPhone</strong><p>点击 Safari 底部的分享按钮 <b>□↑</b>，再选择“添加到主屏幕”。</p><span>⌄</span></div>
+  <script src="knowledge-data.js"></script>
   <script src="library-catalog.public.js"></script>
   <script src="app.js"></script>
 </body>

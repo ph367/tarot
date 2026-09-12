@@ -44,6 +44,12 @@ let deferredInstallPrompt = null;
 let aiEndpoint = localStorage.getItem("xuanshu-ai-endpoint") || "";
 let aiAccessToken = localStorage.getItem("xuanshu-ai-access-token") || "";
 let aiMessages = [];
+const savedKnowledge = JSON.parse(localStorage.getItem("xuanshu-knowledge") || "[]");
+const savedKnowledgeMap = new Map(savedKnowledge.map(item => [item.id, item]));
+let knowledge = (window.SEED_KNOWLEDGE || []).map(item => savedKnowledgeMap.has(item.id) ? { ...item, ...savedKnowledgeMap.get(item.id) } : item);
+knowledge.push(...savedKnowledge.filter(item => !knowledge.some(seed => seed.id === item.id)));
+let knowledgeSystemFilter = "全部体系";
+let knowledgeCategoryFilter = "全部分类";
 let rules = JSON.parse(localStorage.getItem("xuanshu-rules") || "null") || [
   { id:"RULE-AST-001", system:"占星", title:"职业问题不能只看第十宫", statement:"职业判断必须同时覆盖能力结构、工作模式、社会角色、收入模式与当前周期。", observe:["MC","10宫主","6宫","2宫","太阳","土星","木星","当前行运"], formula:"职业判断 = 能力结构 × 工作模式 × 社会角色 × 收入模式 × 当前周期", cases:["CASE-0003"], confidence:"形成中" },
   { id:"RULE-TAROT-017", system:"塔罗", title:"大量逆位且缺少行动牌", statement:"优先考虑内耗、信息不完整或现实行动受阻，而不是直接预测事情不会成功。", observe:["逆位比例","行动牌","元素缺失","人物主动性"], formula:"停滞 ≠ 失败\n先检查：信息完整度 × 行动能力 × 现实阻力", cases:["CASE-0002"], confidence:"待验证" }
@@ -98,9 +104,41 @@ function render() {
   $("#caseCountBadge").textContent = cases.length;
   $("#astrologyCount").textContent = cases.filter(item => item.type === "占星").length;
   $("#tarotCount").textContent = cases.filter(item => item.type === "塔罗").length;
-  $("#knowledgeNodes").textContent = 18 + cases.length * 2;
+  $("#knowledgeNodes").textContent = knowledge.length;
   $("#ruleCount").textContent = rules.length;
   $("#contentCount").textContent = contents.length;
+}
+
+function renderKnowledgeCategories() {
+  const categories = [...new Set(knowledge.filter(item => knowledgeSystemFilter === "全部体系" || item.system === knowledgeSystemFilter).map(item => item.category))].sort((a,b) => a.localeCompare(b,"zh-CN"));
+  const select = $("#knowledgeCategory");
+  select.innerHTML = '<option>全部分类</option>' + categories.map(value => `<option>${escapeHtml(value)}</option>`).join("");
+  if (categories.includes(knowledgeCategoryFilter)) select.value = knowledgeCategoryFilter; else knowledgeCategoryFilter = "全部分类";
+}
+
+function renderKnowledge() {
+  const query = $("#knowledgeSearch").value.trim().toLowerCase();
+  const shown = knowledge.filter(item => {
+    const inSystem = knowledgeSystemFilter === "全部体系" || item.system === knowledgeSystemFilter;
+    const inCategory = knowledgeCategoryFilter === "全部分类" || item.category === knowledgeCategoryFilter;
+    const haystack = [item.title,item.system,item.category,item.basic,item.mechanism,item.reality,...(item.aliases||[]),...(item.conditions||[]),...(item.sources||[])].join(" ").toLowerCase();
+    return inSystem && inCategory && haystack.includes(query);
+  });
+  $("#knowledgeCardCount").textContent = knowledge.length;
+  $("#knowledgeNodes").textContent = knowledge.length;
+  $("#knowledgeCardGrid").innerHTML = shown.map(item => `<article class="knowledge-card-item" data-knowledge-id="${item.id}">
+    <header><span>${escapeHtml(item.system)}</span><small>${escapeHtml(item.category)}</small></header>
+    <h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.mechanism)}</p>
+    <footer><span>${escapeHtml(item.status)}</span><b>${item.cases && item.cases.length ? `${item.cases.length} 个案例` : "待关联案例"}</b></footer>
+  </article>`).join("");
+  $("#knowledgeEmpty").classList.toggle("hidden", shown.length > 0);
+}
+
+function openKnowledgeCard(id) {
+  const item = knowledge.find(card => card.id === id); if (!item) return;
+  const detail = [`① 基础象征\n${item.basic}`,`② 心理 / 运作机制\n${item.mechanism}`,`③ 现实表现\n${item.reality}`,`④ 判断条件\n${(item.conditions||[]).map(value=>`• ${value}`).join("\n")}`,`⑤ 案例与验证\n${item.cases && item.cases.length ? item.cases.join(" · ") : "尚未关联案例，等待真实案例验证。"}`,`【教材来源】\n${(item.sources||[]).join(" · ") || "待补充"}`,`【卡片状态】\n${item.status}`].join("\n\n");
+  $("#readerTitle").textContent = `${item.id}｜${item.title}`; $("#readerType").textContent = `${item.system} · ${item.category}`;
+  $("#readerContent").innerHTML = `<pre>${escapeHtml(detail)}</pre>`; $("#shareResource").classList.add("hidden"); $("#downloadResource").classList.add("hidden"); $("#reader").classList.remove("hidden"); document.body.style.overflow="hidden";
 }
 
 function renderOSLibraries() {
@@ -264,6 +302,15 @@ document.addEventListener("keydown", event => {
 });
 $("#todayLabel").textContent = new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long", day: "numeric" }).format(new Date());
 render();
+renderKnowledgeCategories();
+renderKnowledge();
+
+$("#knowledgeSearch").addEventListener("input", renderKnowledge);
+$("#knowledgeSystem").addEventListener("change", event => { knowledgeSystemFilter = event.target.value; knowledgeCategoryFilter = "全部分类"; renderKnowledgeCategories(); renderKnowledge(); });
+$("#knowledgeCategory").addEventListener("change", event => { knowledgeCategoryFilter = event.target.value; renderKnowledge(); });
+$("#resetKnowledgeFilter").addEventListener("click", () => { knowledgeSystemFilter="全部体系"; knowledgeCategoryFilter="全部分类"; $("#knowledgeSystem").value="全部体系"; $("#knowledgeSearch").value=""; renderKnowledgeCategories(); renderKnowledge(); });
+$("#knowledgeCardGrid").addEventListener("click", event => { const card=event.target.closest("[data-knowledge-id]"); if(card) openKnowledgeCard(card.dataset.knowledgeId); });
+$$('[data-knowledge-category]').forEach(button => button.addEventListener("click", () => { knowledgeCategoryFilter=button.dataset.knowledgeCategory; knowledgeSystemFilter=button.closest(".astrology-tree") ? "占星" : "塔罗"; $("#knowledgeSystem").value=knowledgeSystemFilter; renderKnowledgeCategories(); $("#knowledgeCategory").value=knowledgeCategoryFilter; renderKnowledge(); document.querySelector(".knowledge-toolbar").scrollIntoView({behavior:"smooth",block:"start"}); }));
 
 // 教材文件使用 IndexedDB 保存 Blob，适合离线和较大文件；元数据与文件保持在同一记录中。
 function openLibraryDB() {
