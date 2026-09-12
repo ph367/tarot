@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="玄枢：占星与塔罗案例知识工作台" />
+  <meta name="theme-color" content="#292333" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="玄枢" />
+  <title>玄枢 · 案例知识工作台</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">✦</div>
+        <div>
+          <strong>玄枢</strong>
+          <span>MYSTIC OS</span>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="主导航">
+        <button class="nav-item active" data-view="home"><span>⌂</span>今日工作台</button>
+        <button class="nav-item" data-view="knowledge"><span>✧</span>知识库 <b id="bookCountBadge">0</b></button>
+        <button class="nav-item" data-view="cases"><span>◫</span>案例库 <b id="caseCountBadge">3</b></button>
+        <button class="nav-item" data-view="rules"><span>≋</span>判断规则库 <b id="ruleCountBadge">2</b></button>
+        <button class="nav-item" data-view="errors"><span>△</span>错误数据库 <b id="errorCountBadge">1</b></button>
+        <button class="nav-item" data-view="content"><span>◇</span>内容库 <b id="contentCountBadge">3</b></button>
+      </nav>
+
+      <div class="sidebar-section">
+        <p>你的研究领域</p>
+        <button class="field-item" data-filter="占星"><i class="dot astrology"></i>占星与星盘 <span id="astrologyCount">2</span></button>
+        <button class="field-item" data-filter="塔罗"><i class="dot tarot"></i>塔罗解读 <span id="tarotCount">1</span></button>
+      </div>
+
+      <div class="sidebar-bottom">
+        <div class="privacy-note">
+          <span>⌾</span>
+          <div><strong>本地私密空间</strong><small>当前数据仅保存在此浏览器</small></div>
+        </div>
+        <button class="icon-button" id="exportButton" title="导出案例">⇩</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="search-wrap">
+          <span>⌕</span>
+          <input id="globalSearch" type="search" placeholder="搜索案例、人物代号、主题或洞察…" />
+          <kbd>⌘ K</kbd>
+        </div>
+        <div class="top-actions">
+          <button class="install-button hidden" id="installButton">安装 App</button>
+          <span class="date" id="todayLabel"></span>
+          <button class="avatar">H</button>
+        </div>
+      </header>
+
+      <section class="view active" id="homeView">
+        <div class="hero">
+          <div>
+            <p class="eyebrow">YOUR PRIVATE RESEARCH ATLAS</p>
+            <h1>把每一次解读，<br><em>沉淀为你的方法。</em></h1>
+            <p class="hero-copy">直接讲述咨询经过，我会帮你提取背景、时间线、技法、判断与验证，形成一份可持续复盘的案例档案。</p>
+            <button class="primary-button" id="startCaseButton"><span>＋</span> 开始讲述新案例</button>
+          </div>
+          <div class="orbit-art" aria-hidden="true">
+            <div class="orbit orbit-one"><i></i></div>
+            <div class="orbit orbit-two"><i></i></div>
+            <div class="orbit orbit-three"></div>
+            <div class="sun">☉</div>
+            <span class="star s1">✦</span><span class="star s2">·</span><span class="star s3">✧</span>
+          </div>
+        </div>
+
+        <div class="section-heading">
+          <div><p class="eyebrow">YOUR SYSTEM</p><h2>从学习到表达的闭环</h2></div>
+          <span class="flow-caption">知识输入 → 案例验证 → 方法沉淀 → 内容输出</span>
+        </div>
+        <div class="stats-grid">
+          <article class="stat-card clickable" data-go="knowledge"><div class="stat-icon blue">✧</div><div><strong id="knowledgeNodes">24</strong><span>知识库</span></div><small>你学过什么</small></article>
+          <article class="stat-card clickable" data-go="cases"><div class="stat-icon purple">◐</div><div><strong id="totalCases">3</strong><span>案例库</span></div><small>你如何判断</small></article>
+          <article class="stat-card clickable" data-go="rules"><div class="stat-icon gold">≋</div><div><strong id="ruleCount">2</strong><span>判断规则库</span></div><small>你的判断框架</small></article>
+          <article class="stat-card clickable" data-go="content"><div class="stat-icon rose">◇</div><div><strong id="contentCount">3</strong><span>内容库</span></div><small>可发布的表达</small></article>
+        </div>
+
+        <div class="section-heading compact">
+          <div><p class="eyebrow">RECENT CASES</p><h2>最近整理</h2></div>
+        </div>
+        <div class="case-grid" id="recentCases"></div>
+      </section>
+
+      <section class="view" id="casesView">
+        <div class="page-title-row">
+          <div><p class="eyebrow">CASE LIBRARY</p><h1>案例库</h1><p>让直觉有迹可循，让经验成为方法。</p></div>
+          <button class="primary-button" id="newCaseButton"><span>＋</span> 新建案例</button>
+        </div>
+        <div class="filter-row">
+          <button class="filter-chip active" data-case-filter="全部">全部</button>
+          <button class="filter-chip" data-case-filter="职业">职业</button>
+          <button class="filter-chip" data-case-filter="财富">财富</button>
+          <button class="filter-chip" data-case-filter="感情">感情</button>
+          <button class="filter-chip" data-case-filter="学业">学业</button>
+          <button class="filter-chip" data-case-filter="人际关系">人际关系</button>
+          <button class="filter-chip" data-case-filter="创业">创业</button>
+          <button class="filter-chip" data-case-filter="时间预测">时间预测</button>
+          <button class="filter-chip" data-case-filter="综合盘">综合盘</button>
+          <button class="filter-chip" data-case-filter="待回访">待回访</button>
+        </div>
+        <div class="case-list" id="caseList"></div>
+        <div class="empty-state hidden" id="emptyState"><span>☾</span><h3>没有找到相关案例</h3><p>试试更换关键词或筛选条件。</p></div>
+      </section>
+
+      <section class="view" id="knowledgeView">
+        <div class="page-title-row">
+          <div><p class="eyebrow">KNOWLEDGE LIBRARY</p><h1>知识库</h1><p>记录你学过什么：教材、讲义、摘录与自己的理解。</p></div>
+          <label class="primary-button upload-button">＋ 导入教材<input id="resourceUpload" type="file" accept=".pdf,.epub,.txt,.md,image/*" multiple hidden></label>
+        </div>
+        <div class="taxonomy-grid">
+          <article class="taxonomy-card astrology-tree">
+            <header><span>☉</span><div><small>KNOWLEDGE / 01</small><h2>占星</h2></div></header>
+            <div class="topic-cloud">
+              <button>行星</button><button>星座</button><button>宫位</button><button>相位</button><button>宫主星</button>
+              <button>本命盘</button><button>行运</button><button>推运</button><button>合盘</button>
+              <button class="wide">职业 / 财富 / 关系专题</button>
+            </div>
+          </article>
+          <article class="taxonomy-card tarot-tree">
+            <header><span>✦</span><div><small>KNOWLEDGE / 02</small><h2>塔罗</h2></div></header>
+            <div class="topic-cloud">
+              <button>78张牌</button><button>正位</button><button>逆位</button><button>元素</button><button>数字</button>
+              <button>宫廷牌</button><button>牌阵</button><button>原型</button><button>荣格心理学</button>
+              <button class="wide">不同问题类型的解读框架</button>
+            </div>
+          </article>
+        </div>
+        <div class="section-heading compact"><div><p class="eyebrow">FIVE-LAYER NOTE</p><h2>五层知识卡</h2></div><small class="flow-caption">口述学习心得后由 AI 生成</small></div>
+        <article class="knowledge-note">
+          <header><div class="planet-symbol">♄</div><div><small>占星 · 行星</small><h2>土星 Saturn</h2><p>不是背诵关键词，而是记录它如何在心理与现实中运作。</p></div><span class="note-state">持续验证中</span></header>
+          <div class="knowledge-layers">
+            <section><b>01</b><div><h3>基础象征</h3><p>限制、结构、规则、责任、时间、成熟。</p></div></section>
+            <section><b>02</b><div><h3>心理机制</h3><blockquote>“我害怕自己不够好，所以我要控制、努力、证明。”</blockquote></div></section>
+            <section><b>03</b><div><h3>现实表现</h3><p><strong>事业：</strong>晋升慢、高责任职位、长期积累</p><p><strong>关系：</strong>边界、承诺、恐惧亲密</p></div></section>
+            <section><b>04</b><div><h3>判断条件</h3><p>土星 ≠ 一定不好。需要结合宫位、宫主、相位、尊贵与行运触发。</p></div></section>
+            <section><b>05</b><div><h3>关联案例</h3><div class="case-links"><button data-go="cases">CASE-0001</button><button data-go="cases">CASE-0003</button><button>＋ 关联案例</button></div></div></section>
+          </div>
+        </article>
+        <div class="section-heading compact"><div><p class="eyebrow">SOURCE MATERIALS</p><h2>教材与学习资料</h2></div></div>
+        <div class="library-toolbar">
+          <div class="library-stats"><strong id="resourceCount">0</strong><span>份资料</span><i></i><strong id="resourceSize">0 MB</strong><span>本地占用</span></div>
+          <div class="library-note">⌾ 文件仅保存在当前设备，可随时导出或删除</div>
+        </div>
+        <div class="resource-filters">
+          <button class="filter-chip active" data-resource-filter="全部">全部</button>
+          <button class="filter-chip" data-resource-filter="占星">占星</button>
+          <button class="filter-chip" data-resource-filter="塔罗">塔罗</button>
+          <button class="filter-chip" data-resource-filter="数字命理">数字命理</button>
+          <button class="filter-chip" data-resource-filter="未分类">未分类</button>
+        </div>
+        <div class="resource-grid" id="resourceGrid"></div>
+        <div class="resource-empty" id="resourceEmpty">
+          <div class="book-stack"><i></i><i></i><i></i><span>✦</span></div>
+          <h3>把你的第一份教材带进来</h3>
+          <p>支持 PDF、EPUB、TXT、Markdown 和图片；可以一次选择多个文件。</p>
+          <label class="secondary-button upload-button">选择文件<input type="file" accept=".pdf,.epub,.txt,.md,image/*" multiple hidden data-resource-upload></label>
+        </div>
+        <div class="section-heading compact" id="mapHeading">
+          <div><p class="eyebrow">KNOWLEDGE MAP</p><h2>知识图谱预览</h2></div>
+        </div>
+        <div class="knowledge-layout">
+          <div class="knowledge-map">
+            <div class="map-ring r1"></div><div class="map-ring r2"></div>
+            <button class="node core">你的<br>知识体系</button>
+            <button class="node n1">占星</button><button class="node n2">塔罗</button>
+            <button class="node n3">关系</button><button class="node n4">事业</button>
+            <button class="node n5">流年</button><button class="node n6">验证</button>
+          </div>
+          <aside class="insight-panel">
+            <p class="eyebrow">EMERGING PATTERNS</p>
+            <h2>正在形成的脉络</h2>
+            <div class="pattern"><span>01</span><div><strong>关系议题 × 土星</strong><p>在 3 个案例中出现边界与承诺主题。</p></div></div>
+            <div class="pattern"><span>02</span><div><strong>高塔后的重建</strong><p>危机事件常伴随更清晰的自我选择。</p></div></div>
+            <div class="pattern"><span>03</span><div><strong>回访验证</strong><p>具体时间窗口比宽泛趋势更值得追踪。</p></div></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" id="contentView">
+        <div class="page-title-row">
+          <div><p class="eyebrow">CONTENT STUDIO</p><h1>内容库</h1><p>把知识、案例和方法论，转化成小红书、视频与直播内容。</p></div>
+          <button class="primary-button" id="newContentButton">＋ 添加选题</button>
+        </div>
+        <div class="content-sources">
+          <div><span>01</span><strong>知识切片</strong><small>解释一个概念</small></div><i>→</i>
+          <div><span>02</span><strong>案例故事</strong><small>呈现判断过程</small></div><i>→</i>
+          <div><span>03</span><strong>方法输出</strong><small>形成系列观点</small></div><i>→</i>
+          <div class="accent"><span>04</span><strong>多平台表达</strong><small>小红书 · 视频 · 直播</small></div>
+        </div>
+        <div class="content-board" id="contentBoard"></div>
+      </section>
+
+      <section class="view" id="rulesView">
+        <div class="page-title-row">
+          <div><p class="eyebrow">DECISION RULES</p><h1>判断规则库</h1><p>将经验写成可验证的规则，而不是停留在模糊直觉。</p></div>
+          <button class="primary-button" id="newRuleButton">＋ 新建判断规则</button>
+        </div>
+        <div class="rule-summary"><div><strong id="astRuleCount">1</strong><span>占星规则</span></div><div><strong id="tarotRuleCount">1</strong><span>塔罗规则</span></div><div><strong>3</strong><span>关联案例</span></div><p>规则必须同时记录适用条件、观察项、判断公式、支持案例与反例。</p></div>
+        <div class="rule-grid" id="ruleGrid"></div>
+      </section>
+
+      <section class="view" id="errorsView">
+        <div class="page-title-row">
+          <div><p class="eyebrow">PREDICTION ERROR LOG</p><h1>错误数据库</h1><p>系统记录偏差，找到自己最容易误判的地方。</p></div>
+          <button class="primary-button" id="newErrorButton">＋ 记录一次误判</button>
+        </div>
+        <div class="error-insight"><span>△</span><div><strong>当前高频误差：时间判断偏快</strong><p>已有记录显示，需要特别检查土星行运与现实条件造成的延迟。</p></div></div>
+        <div class="error-table-wrap">
+          <table class="error-table"><thead><tr><th>关联案例</th><th>问题</th><th>我的判断</th><th>实际结果</th><th>错在哪里</th><th>原因</th></tr></thead><tbody id="errorTableBody"></tbody></table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal hidden" id="caseModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="case-workspace">
+      <header class="modal-header">
+        <div><p class="eyebrow">NEW CASE · GUIDED INTAKE</p><h2 id="modalTitle">讲讲这个案例</h2></div>
+        <button class="close-button" data-close-modal aria-label="关闭">×</button>
+      </header>
+      <div class="workspace-body">
+        <section class="narrative-panel">
+          <div class="assistant-bubble">
+            <div class="assistant-mark">✦</div>
+            <div><strong>从任何地方开始都可以</strong><p>你可以像聊天一样，告诉我当事人的背景、发生了什么、你用了哪些牌或星盘信息，以及后来有没有得到验证。</p></div>
+          </div>
+          <label for="caseNarrative">案例经过</label>
+          <textarea id="caseNarrative" placeholder="例如：来访者用代号 L，最近因为工作变动感到犹豫。我为她抽了三张牌……"></textarea>
+          <div class="prompt-chips">
+            <button data-prompt="这是一个占星案例，当事人的核心问题是…">占星案例</button>
+            <button data-prompt="这是一个塔罗案例，我使用的牌阵是…">塔罗案例</button>
+            <button data-prompt="后来回访时，当事人告诉我…">补充回访</button>
+          </div>
+          <button class="organize-button" id="organizeButton"><span>✦</span> 帮我整理</button>
+          <p class="local-hint">当前为本地整理模式；接入 AI 后会自动理解更复杂的叙述。</p>
+        </section>
+        <section class="preview-panel">
+          <div class="preview-header"><div><span class="status-dot"></span>结构化预览</div><small>可在保存前修改</small></div>
+          <div class="preview-empty" id="previewEmpty"><span>☽</span><p>讲述完成后，案例档案会在这里逐步成形。</p></div>
+          <form class="structured-form hidden" id="structuredForm">
+            <div class="form-grid">
+              <label>案例标题<input id="caseTitle" required></label>
+              <label>案例类型<select id="caseTheme"><option>职业</option><option>财富</option><option>感情</option><option>学业</option><option>人际关系</option><option>创业</option><option>时间预测</option><option>综合盘</option></select></label>
+              <label>人物代号<input id="casePerson" placeholder="匿名代号"></label>
+              <label>使用体系<select id="caseType"><option>占星</option><option>塔罗</option><option>两者结合</option></select></label>
+            </div>
+            <label>咨询问题<textarea id="caseQuestion" class="small-area" placeholder="保留咨询者的原始问题"></textarea></label>
+            <label>背景信息<textarea id="caseBackground" class="small-area" placeholder="咨询者提供的信息"></textarea></label>
+            <div class="form-grid"><label>塔罗牌 / 牌阵<input id="caseTarot" placeholder="三张牌、牌阵与正逆位"></label><label>星盘信息<input id="caseChart" placeholder="本命、行运、推运、相位"></label></div>
+            <label>第一判断<textarea id="caseFirstJudgment" class="small-area" placeholder="看到信息时的第一反应"></textarea></label>
+            <label>正式判断<textarea id="caseInsight" class="small-area" placeholder="整理后的完整结论"></textarea></label>
+            <label>判断依据<textarea id="caseBasis" class="small-area" placeholder="为什么这么判断"></textarea></label>
+            <label>关键机制<textarea id="caseMechanism" class="small-area" placeholder="真正的核心问题是什么"></textarea></label>
+            <div class="form-grid"><label>建议<textarea id="caseAdvice" class="small-area" placeholder="可以怎么行动"></textarea></label><label>预测<textarea id="casePrediction" class="small-area" placeholder="时间与可能结果"></textarea></label></div>
+            <label>后续反馈<textarea id="caseFollowup" class="small-area" placeholder="真实发生了什么"></textarea></label>
+            <div class="form-grid"><label>是否验证<select id="caseVerified"><option>待验证</option><option>是</option><option>否</option><option>部分</option></select></label><label>可否公开<select id="casePublic"><option>否</option><option>是</option></select></label></div>
+            <label>偏差<textarea id="caseBias" class="small-area" placeholder="哪里判断错了"></textarea></label>
+            <label>复盘<textarea id="caseReview" class="small-area" placeholder="为什么错，下一次如何判断"></textarea></label>
+            <label>可提炼知识<textarea id="caseKnowledge" class="small-area" placeholder="能形成什么规律，可关联哪张知识卡"></textarea></label>
+            <label>内容化<select id="caseContent"><option>待判断</option><option>可以做成帖子</option><option>适合短视频</option><option>适合长视频</option><option>适合直播</option><option>不可内容化</option></select></label>
+            <div class="form-actions"><button type="button" class="secondary-button" data-close-modal>暂不保存</button><button type="submit" class="primary-button">保存到案例库</button></div>
+          </form>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast hidden" id="toast">案例已保存</div>
+  <div class="reader hidden" id="reader">
+    <div class="reader-backdrop" data-close-reader></div>
+    <div class="reader-window">
+      <header><div><small id="readerType"></small><strong id="readerTitle"></strong></div><div><button id="shareResource" title="传到微信读书">传到微信读书</button><button id="downloadResource" title="下载原文件">⇩</button><button data-close-reader>×</button></div></header>
+      <div class="reader-content" id="readerContent"></div>
+    </div>
+  </div>
+  <div class="ios-install-tip hidden" id="iosInstallTip"><button data-close-install>×</button><strong>安装“玄枢”到 iPhone</strong><p>点击 Safari 底部的分享按钮 <b>□↑</b>，再选择“添加到主屏幕”。</p><span>⌄</span></div>
+  <script src="library-catalog.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

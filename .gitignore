@@ -1,0 +1,9 @@
+# 私人教材与后续本地资料不进入公开仓库
+资料库/
+library-catalog.js
+
+# 本地缓存与编辑器文件
+node_modules/
+.DS_Store
+Thumbs.db
+.edge-test/
