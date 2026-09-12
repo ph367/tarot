@@ -1,0 +1,18 @@
+name = "xuanshu-ai"
+main = "src/index.js"
+compatibility_date = "2026-09-12"
+
+[vars]
+ALLOWED_ORIGIN = "https://ph367.github.io"
+OPENAI_MODEL = "gpt-4.1-mini"
+
+# 部署前执行：
+# npx wrangler kv namespace create XUANSHU_KV
+# 把返回的 id 填入下方，再把本文件复制为 wrangler.toml。
+[[kv_namespaces]]
+binding = "XUANSHU_KV"
+id = "请替换为你的 KV namespace id"
+
+# 密钥不要写入此文件：
+# npx wrangler secret put OPENAI_API_KEY
+# npx wrangler secret put APP_ACCESS_TOKEN

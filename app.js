@@ -41,6 +41,9 @@ let resourceFilter = "全部";
 let resources = [];
 let currentResource = null;
 let deferredInstallPrompt = null;
+let aiEndpoint = localStorage.getItem("xuanshu-ai-endpoint") || "";
+let aiAccessToken = localStorage.getItem("xuanshu-ai-access-token") || "";
+let aiMessages = [];
 let rules = JSON.parse(localStorage.getItem("xuanshu-rules") || "null") || [
   { id:"RULE-AST-001", system:"占星", title:"职业问题不能只看第十宫", statement:"职业判断必须同时覆盖能力结构、工作模式、社会角色、收入模式与当前周期。", observe:["MC","10宫主","6宫","2宫","太阳","土星","木星","当前行运"], formula:"职业判断 = 能力结构 × 工作模式 × 社会角色 × 收入模式 × 当前周期", cases:["CASE-0003"], confidence:"形成中" },
   { id:"RULE-TAROT-017", system:"塔罗", title:"大量逆位且缺少行动牌", statement:"优先考虑内耗、信息不完整或现实行动受阻，而不是直接预测事情不会成功。", observe:["逆位比例","行动牌","元素缺失","人物主动性"], formula:"停滞 ≠ 失败\n先检查：信息完整度 × 行动能力 × 现实阻力", cases:["CASE-0002"], confidence:"待验证" }
@@ -178,6 +181,20 @@ function organizeNarrative() {
   showToast("已生成结构化草稿");
 }
 
+async function organizeNarrativeSmart() {
+  const narrative = $("#caseNarrative").value.trim();
+  if (!narrative || !aiEndpoint) { organizeNarrative(); return; }
+  $("#organizeButton").disabled = true; $("#organizeButton").innerHTML = "<span>✦</span> AI 正在整理…";
+  try {
+    const data = await aiRequest("/api/cases/structure", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ narrative }) });
+    const fields = data.case || {};
+    const fieldMap = { title:"caseTitle", theme:"caseTheme", person:"casePerson", system:"caseType", question:"caseQuestion", background:"caseBackground", tarot:"caseTarot", chart:"caseChart", firstJudgment:"caseFirstJudgment", judgment:"caseInsight", basis:"caseBasis", mechanism:"caseMechanism", advice:"caseAdvice", prediction:"casePrediction", followup:"caseFollowup", verified:"caseVerified", bias:"caseBias", review:"caseReview", knowledge:"caseKnowledge", public:"casePublic", content:"caseContent" };
+    Object.entries(fieldMap).forEach(([key, id]) => { if (fields[key] !== undefined && $(`#${id}`)) $(`#${id}`).value = fields[key]; });
+    $("#previewEmpty").classList.add("hidden"); $("#structuredForm").classList.remove("hidden"); showToast("AI 已完成结构化整理");
+  } catch (error) { organizeNarrative(); showToast(`AI 暂不可用，已改用本地整理`); }
+  finally { $("#organizeButton").disabled = false; $("#organizeButton").innerHTML = "<span>✦</span> 帮我整理"; }
+}
+
 function showToast(message) {
   const toast = $("#toast"); toast.textContent = message; toast.classList.remove("hidden");
   clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => toast.classList.add("hidden"), 2200);
@@ -192,7 +209,7 @@ $$('.nav-item').forEach(item => item.addEventListener('click', () => switchView(
 $$('[data-go]').forEach(item => item.addEventListener('click', () => switchView(item.dataset.go)));
 [$("#startCaseButton"), $("#newCaseButton")].forEach(button => button.addEventListener("click", openModal));
 $$('[data-close-modal]').forEach(item => item.addEventListener('click', closeModal));
-$("#organizeButton").addEventListener("click", organizeNarrative);
+$("#organizeButton").addEventListener("click", organizeNarrativeSmart);
 $("#globalSearch").addEventListener("input", () => { render(); if ($("#globalSearch").value) switchView("cases"); });
 $("#caseList").addEventListener("click", event => {
   const contentButton = event.target.closest("[data-case-to-content]");
@@ -266,9 +283,20 @@ async function readResources() {
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
-    resources = [...(window.BUNDLED_RESOURCES || []), ...localResources].sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+    const localNames = new Map(localResources.map(item => [normalizeBookName(item.name), item]));
+    const catalog = (window.BUNDLED_RESOURCES || []).map(item => {
+      const local = localNames.get(normalizeBookName(item.name));
+      return local ? { ...item, ...local, category: item.category, topic: item.topic, catalogId: item.id, available: true } : item;
+    });
+    const catalogNames = new Set(catalog.map(item => normalizeBookName(item.name)));
+    const additions = localResources.filter(item => !catalogNames.has(normalizeBookName(item.name)));
+    resources = [...catalog, ...additions].sort((a, b) => b.addedAt.localeCompare(a.addedAt));
     renderResources();
   } catch (error) { showToast("当前浏览器无法打开本地资料库"); }
+}
+
+function normalizeBookName(name = "") {
+  return name.toLowerCase().replace(/\s+/g, "").replace(/（[^）]*(z-library|pandora)[^）]*）/gi, "").replace(/\([^)]*(z-library|pandora)[^)]*\)/gi, "");
 }
 
 function saveResource(record) {
@@ -305,14 +333,16 @@ function renderResources() {
   const shown = resources.filter(item => resourceFilter === "全部" || item.category === resourceFilter);
   $("#resourceGrid").innerHTML = shown.map(item => {
     const kindClass = item.kind === "PDF" ? "pdf" : item.kind === "EPUB" ? "epub" : item.kind === "图片" ? "image" : "";
-    return `<article class="resource-card">
+    const ready = item.available !== false && (item.blob || item.url);
+    const aiState = item.aiIndexed ? '<span class="ai-indexed">AI 已学习</span>' : (ready ? `<button data-index-resource="${item.id}">交给 AI</button>` : "");
+    return `<article class="resource-card ${ready ? "" : "catalog-only"}">
       <div class="resource-cover ${kindClass}">${escapeHtml(item.kind)}</div>
-      <select class="resource-category" data-category-id="${item.id}" aria-label="资料分类" ${item.bundled ? "disabled" : ""}><option ${item.category === "未分类" ? "selected" : ""}>未分类</option><option ${item.category === "占星" ? "selected" : ""}>占星</option><option ${item.category === "塔罗" ? "selected" : ""}>塔罗</option><option ${item.category === "数字命理" ? "selected" : ""}>数字命理</option></select>
+      <select class="resource-category" data-category-id="${item.id}" aria-label="资料分类" ${item.catalog ? "disabled" : ""}><option ${item.category === "未分类" ? "selected" : ""}>未分类</option><option ${item.category === "占星" ? "selected" : ""}>占星</option><option ${item.category === "塔罗" ? "selected" : ""}>塔罗</option><option ${item.category === "数字命理" ? "selected" : ""}>数字命理</option></select>
       <h3 title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</h3><p>${formatBytes(item.size)} · ${escapeHtml(item.topic || (item.bundled ? "内置教材" : "本地导入"))}</p>
-      <div class="resource-actions"><button data-open-resource="${item.id}">打开</button><button data-share-resource="${item.id}">传到微信读书</button>${item.bundled ? "<span>已内置</span>" : `<button data-delete-resource="${item.id}">删除</button>`}</div>
+      <div class="resource-actions">${ready ? `<button data-open-resource="${item.id}">打开</button><button data-share-resource="${item.id}">微信读书</button>${aiState}${item.catalog ? "" : `<button data-delete-resource="${item.id}">删除</button>`}` : '<label class="inline-import">导入原文件<input type="file" hidden data-resource-upload></label><span>书目已加入</span>'}</div>
     </article>`;
   }).join("");
-  const totalSize = resources.reduce((sum, item) => sum + item.size, 0);
+  const totalSize = resources.filter(item => item.available !== false).reduce((sum, item) => sum + item.size, 0);
   $("#resourceCount").textContent = resources.length; $("#bookCountBadge").textContent = resources.length;
   $("#resourceSize").textContent = formatBytes(totalSize); $("#resourceEmpty").classList.toggle("hidden", resources.length > 0);
   $("#resourceGrid").classList.toggle("hidden", resources.length === 0);
@@ -323,7 +353,8 @@ async function importResources(fileList) {
   showToast(`正在导入 ${files.length} 份资料…`);
   try {
     for (const file of files) {
-      await saveResource({ id: `resource-${Date.now()}-${Math.random().toString(16).slice(2)}`, name: file.name, type: file.type, kind: fileKind(file), size: file.size, category: "未分类", addedAt: new Date().toISOString(), blob: file });
+      const catalog = (window.BUNDLED_RESOURCES || []).find(item => normalizeBookName(item.name) === normalizeBookName(file.name));
+      await saveResource({ id: `resource-${Date.now()}-${Math.random().toString(16).slice(2)}`, name: file.name, type: file.type, kind: fileKind(file), size: file.size, category: (catalog && catalog.category) || "未分类", topic: (catalog && catalog.topic) || "本地导入", addedAt: new Date().toISOString(), blob: file, available: true });
     }
     await readResources(); showToast(`已导入 ${files.length} 份资料`);
   } catch (error) { showToast("导入失败，可能是设备存储空间不足"); }
@@ -331,6 +362,7 @@ async function importResources(fileList) {
 
 async function openResource(id) {
   currentResource = resources.find(item => item.id === id); if (!currentResource) return;
+  if (currentResource.available === false) { showToast("请先导入你拥有的教材原文件"); return; }
   const url = currentResource.url || URL.createObjectURL(currentResource.blob);
   $("#readerTitle").textContent = currentResource.name; $("#readerType").textContent = `${currentResource.category} · ${currentResource.kind}`;
   const content = $("#readerContent"); content.innerHTML = ""; content.dataset.url = currentResource.blob ? url : "";
@@ -380,13 +412,17 @@ async function shareToWeRead(id) {
   showToast("设备不支持直接分享：文件已下载，请在微信读书中导入");
 }
 
-[$("#resourceUpload"), ...$$('[data-resource-upload]')].forEach(input => input.addEventListener("change", event => { importResources(event.target.files); event.target.value = ""; }));
+document.addEventListener("change", event => {
+  if (!event.target.matches("#resourceUpload, [data-resource-upload]")) return;
+  importResources(event.target.files); event.target.value = "";
+});
 $$('[data-resource-filter]').forEach(chip => chip.addEventListener("click", () => {
   resourceFilter = chip.dataset.resourceFilter; $$('[data-resource-filter]').forEach(c => c.classList.remove("active")); chip.classList.add("active"); renderResources();
 }));
 $("#resourceGrid").addEventListener("click", async event => {
   const openButton = event.target.closest("[data-open-resource]"); if (openButton) openResource(openButton.dataset.openResource);
   const shareButton = event.target.closest("[data-share-resource]"); if (shareButton) shareToWeRead(shareButton.dataset.shareResource);
+  const indexButton = event.target.closest("[data-index-resource]"); if (indexButton) indexResourceForAI(indexButton.dataset.indexResource);
   const deleteButton = event.target.closest("[data-delete-resource]");
   if (deleteButton && confirm("确定从此设备删除这份资料吗？")) { await removeResource(deleteButton.dataset.deleteResource); await readResources(); showToast("资料已删除"); }
 });
@@ -410,6 +446,70 @@ if (isIOS && !isStandalone) $("#installButton").classList.remove("hidden");
 if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("./sw.js");
 readResources();
 renderOSLibraries();
+
+// AI 连接通过独立后端完成，公开网页中不保存 OpenAI API 密钥。
+function normalizedEndpoint() { return aiEndpoint.trim().replace(/\/$/, ""); }
+
+function renderAIState(message = "") {
+  const connected = Boolean(aiEndpoint);
+  $("#aiConnectionState").textContent = connected ? "已填写连接地址" : "尚未连接";
+  $("#aiConnectionState").classList.toggle("connected", connected);
+  $("#aiEndpoint").value = aiEndpoint;
+  $("#aiAccessToken").value = aiAccessToken;
+  if (message) $("#aiStatusMessage").textContent = message;
+}
+
+async function aiRequest(path, options = {}) {
+  if (!aiEndpoint) throw new Error("请先填写 AI 后端地址");
+  const headers = new Headers(options.headers || {}); if (aiAccessToken) headers.set("X-Xuanshu-Token", aiAccessToken);
+  const response = await fetch(`${normalizedEndpoint()}${path}`, { ...options, headers });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `连接失败（${response.status}）`);
+  return data;
+}
+
+async function testAIConnection() {
+  aiEndpoint = $("#aiEndpoint").value.trim();
+  aiAccessToken = $("#aiAccessToken").value.trim();
+  if (!aiEndpoint) { showToast("请填写 AI 后端地址"); return; }
+  localStorage.setItem("xuanshu-ai-endpoint", aiEndpoint);
+  localStorage.setItem("xuanshu-ai-access-token", aiAccessToken);
+  renderAIState("正在测试连接…");
+  try { const data = await aiRequest("/health"); renderAIState(`连接成功 · ${data.model || "AI 服务"}`); showToast("AI 已连接"); }
+  catch (error) { renderAIState(error.message); showToast("AI 连接失败"); }
+}
+
+async function indexResourceForAI(id) {
+  const resource = resources.find(item => item.id === id);
+  if (!resource || !resource.blob) { showToast("请先在此设备导入教材原文件"); return; }
+  if (!aiEndpoint) { switchView("assistant"); showToast("请先连接 AI 后端"); return; }
+  showToast(`正在把《${resource.name}》交给 AI…`);
+  const form = new FormData(); form.append("file", resource.blob, resource.name); form.append("category", resource.category); form.append("topic", resource.topic || "");
+  try {
+    await aiRequest("/api/books", { method: "POST", body: form });
+    resource.aiIndexed = true; await saveResource(resource); await readResources(); showToast("教材已进入 AI 知识库");
+  } catch (error) { showToast(error.message); }
+}
+
+function appendAIMessage(role, text, sources = []) {
+  aiMessages.push({ role, text, sources });
+  $("#aiConversation").innerHTML = aiMessages.map(item => `<article class="ai-message ${item.role}"><strong>${item.role === "user" ? "你" : "玄枢 AI"}</strong><p>${escapeHtml(item.text).replace(/\n/g, "<br>")}</p>${item.sources && item.sources.length ? `<footer>参考教材：${item.sources.map(escapeHtml).join(" · ")}</footer>` : ""}</article>`).join("");
+  $("#aiConversation").scrollTop = $("#aiConversation").scrollHeight;
+}
+
+async function askAI() {
+  const input = $("#aiQuestion"); const question = input.value.trim(); if (!question) return;
+  appendAIMessage("user", question); input.value = ""; $("#askAIButton").disabled = true;
+  try { const data = await aiRequest("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ question, history: aiMessages.slice(-8) }) }); appendAIMessage("assistant", data.answer, data.sources || []); }
+  catch (error) { appendAIMessage("assistant", `暂时无法回答：${error.message}`); }
+  finally { $("#askAIButton").disabled = false; }
+}
+
+$("#testAIButton").addEventListener("click", testAIConnection);
+$("#askAIButton").addEventListener("click", askAI);
+$("#aiQuestion").addEventListener("keydown", event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); askAI(); } });
+$$('[data-ai-prompt]').forEach(button => button.addEventListener("click", () => { $("#aiQuestion").value = button.dataset.aiPrompt; $("#aiQuestion").focus(); }));
+renderAIState();
 
 $("#newRuleButton").addEventListener("click", () => {
   const title = prompt("用一句话写下这条判断规则："); if (!title) return;

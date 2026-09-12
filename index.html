@@ -31,6 +31,7 @@
       <nav class="nav" aria-label="主导航">
         <button class="nav-item active" data-view="home"><span>⌂</span>今日工作台</button>
         <button class="nav-item" data-view="knowledge"><span>✧</span>知识库 <b id="bookCountBadge">0</b></button>
+        <button class="nav-item" data-view="assistant"><span>✦</span>教材 AI</button>
         <button class="nav-item" data-view="cases"><span>◫</span>案例库 <b id="caseCountBadge">3</b></button>
         <button class="nav-item" data-view="rules"><span>≋</span>判断规则库 <b id="ruleCountBadge">2</b></button>
         <button class="nav-item" data-view="errors"><span>△</span>错误数据库 <b id="errorCountBadge">1</b></button>
@@ -195,6 +196,33 @@
         </div>
       </section>
 
+      <section class="view" id="assistantView">
+        <div class="page-title-row">
+          <div><p class="eyebrow">KNOWLEDGE ASSISTANT</p><h1>教材 AI</h1><p>从你的教材中检索证据，辅助整理案例、知识卡与判断规则。</p></div>
+          <span class="ai-state" id="aiConnectionState">尚未连接</span>
+        </div>
+        <div class="ai-layout">
+          <aside class="ai-settings-card">
+            <div class="assistant-mark">✦</div>
+            <h2>连接私人 AI</h2>
+            <p>OpenAI 密钥只保存在你的后端，不进入这个公开网页或 GitHub。</p>
+            <label>AI 后端地址<input id="aiEndpoint" type="url" inputmode="url" placeholder="https://你的服务地址"></label>
+            <label>访问口令<input id="aiAccessToken" type="password" autocomplete="off" placeholder="你为玄枢设置的私人口令"></label>
+            <button class="primary-button" id="testAIButton">保存并测试</button>
+            <small id="aiStatusMessage">连接后，回到知识库点击“交给 AI”，即可让 AI 学习你导入的教材。</small>
+            <div class="ai-privacy"><strong>资料流向</strong><span>iPhone → 私人后端 → OpenAI 文件检索</span></div>
+          </aside>
+          <section class="ai-chat-card">
+            <header><div><small>PRIVATE RESEARCH CHAT</small><strong>和你的教材对话</strong></div><span>引用来源 · 不编造书中内容</span></header>
+            <div class="ai-conversation" id="aiConversation">
+              <article class="ai-message assistant"><strong>玄枢 AI</strong><p>连接完成并把教材交给 AI 后，你可以问：土星在职业问题中的心理机制是什么？请比较不同教材的说法，并标出来源。</p></article>
+            </div>
+            <div class="ai-composer"><textarea id="aiQuestion" placeholder="向教材提问，或粘贴一个案例让我结合教材分析…"></textarea><button id="askAIButton">发送</button></div>
+            <div class="ai-prompts"><button data-ai-prompt="比较《78度的智慧》和《塔罗图形密钥》对逆位的理解。">比较两本书</button><button data-ai-prompt="把相关教材观点整理成五层知识卡。">生成知识卡</button><button data-ai-prompt="请用象征、机制、行动三层分析这个案例。">辅助案例判断</button></div>
+          </section>
+        </div>
+      </section>
+
       <section class="view" id="contentView">
         <div class="page-title-row">
           <div><p class="eyebrow">CONTENT STUDIO</p><h1>内容库</h1><p>把知识、案例和方法论，转化成小红书、视频与直播内容。</p></div>
@@ -252,7 +280,7 @@
             <button data-prompt="后来回访时，当事人告诉我…">补充回访</button>
           </div>
           <button class="organize-button" id="organizeButton"><span>✦</span> 帮我整理</button>
-          <p class="local-hint">当前为本地整理模式；接入 AI 后会自动理解更复杂的叙述。</p>
+          <p class="local-hint">未连接时使用本地整理；连接教材 AI 后可进一步结合资料分析。</p>
         </section>
         <section class="preview-panel">
           <div class="preview-header"><div><span class="status-dot"></span>结构化预览</div><small>可在保存前修改</small></div>
@@ -294,7 +322,7 @@
     </div>
   </div>
   <div class="ios-install-tip hidden" id="iosInstallTip"><button data-close-install>×</button><strong>安装“玄枢”到 iPhone</strong><p>点击 Safari 底部的分享按钮 <b>□↑</b>，再选择“添加到主屏幕”。</p><span>⌄</span></div>
-  <script src="library-catalog.js"></script>
+  <script src="library-catalog.public.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
