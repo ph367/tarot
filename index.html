@@ -31,7 +31,7 @@
       <nav class="nav" aria-label="主导航">
         <button class="nav-item active" data-view="home"><span>⌂</span>今日工作台</button>
         <button class="nav-item" data-view="knowledge"><span>✧</span>知识库 <b id="bookCountBadge">0</b></button>
-        <button class="nav-item" data-view="assistant"><span>✦</span>教材 AI</button>
+        <button class="nav-item" data-view="assistant"><span>✦</span>整理 AI</button>
         <button class="nav-item" data-view="cases"><span>◫</span>案例库 <b id="caseCountBadge">3</b></button>
         <button class="nav-item" data-view="rules"><span>≋</span>判断规则库 <b id="ruleCountBadge">2</b></button>
         <button class="nav-item" data-view="errors"><span>△</span>错误数据库 <b id="errorCountBadge">1</b></button>
@@ -145,7 +145,7 @@
             </div>
           </article>
         </div>
-        <div class="section-heading compact"><div><p class="eyebrow">STRUCTURED KNOWLEDGE</p><h2>完整知识卡库</h2></div><small class="flow-caption"><b id="knowledgeCardCount">0</b> 张五层知识卡</small></div>
+        <div class="section-heading compact"><div><p class="eyebrow">STRUCTURED KNOWLEDGE</p><h2>完整知识卡库</h2></div><div class="heading-actions"><small class="flow-caption"><b id="knowledgeCardCount">0</b> 张五层知识卡</small><button class="secondary-button" id="newKnowledgeButton">＋ 新增知识卡</button></div></div>
         <div class="knowledge-toolbar">
           <input id="knowledgeSearch" type="search" placeholder="搜索行星、牌名、机制、判断条件…">
           <select id="knowledgeSystem"><option>全部体系</option><option>占星</option><option>塔罗</option><option>数字命理</option></select>
@@ -207,27 +207,28 @@
 
       <section class="view" id="assistantView">
         <div class="page-title-row">
-          <div><p class="eyebrow">KNOWLEDGE ASSISTANT</p><h1>教材 AI</h1><p>从你的教材中检索证据，辅助整理案例、知识卡与判断规则。</p></div>
+          <div><p class="eyebrow">ORGANIZING ASSISTANT</p><h1>整理 AI</h1><p>你负责口述和思考，AI 负责整理成案例、知识卡、规则或内容草稿。</p></div>
           <span class="ai-state" id="aiConnectionState">尚未连接</span>
         </div>
         <div class="ai-layout">
           <aside class="ai-settings-card">
             <div class="assistant-mark">✦</div>
-            <h2>连接私人 AI</h2>
-            <p>OpenAI 密钥只保存在你的后端，不进入这个公开网页或 GitHub。</p>
+            <h2>连接整理 AI</h2>
+            <p>OpenAI 密钥只保存在你的后端。教材不会上传给 AI。</p>
             <label>AI 后端地址<input id="aiEndpoint" type="url" inputmode="url" placeholder="https://你的服务地址"></label>
             <label>访问口令<input id="aiAccessToken" type="password" autocomplete="off" placeholder="你为玄枢设置的私人口令"></label>
             <button class="primary-button" id="testAIButton">保存并测试</button>
-            <small id="aiStatusMessage">连接后，回到知识库点击“交给 AI”，即可让 AI 学习你导入的教材。</small>
-            <div class="ai-privacy"><strong>资料流向</strong><span>iPhone → 私人后端 → OpenAI 文件检索</span></div>
+            <small id="aiStatusMessage">连接后，直接粘贴或口述原始内容，选择希望整理成的资料类型。</small>
+            <div class="ai-privacy"><strong>资料流向</strong><span>你输入的文字 → 私人后端 → OpenAI 结构化整理</span></div>
           </aside>
           <section class="ai-chat-card">
-            <header><div><small>PRIVATE RESEARCH CHAT</small><strong>和你的教材对话</strong></div><span>引用来源 · 不编造书中内容</span></header>
+            <header><div><small>PRIVATE ORGANIZING SPACE</small><strong>把杂乱内容变成系统资料</strong></div><span>不补造缺失信息</span></header>
             <div class="ai-conversation" id="aiConversation">
-              <article class="ai-message assistant"><strong>玄枢 AI</strong><p>连接完成并把教材交给 AI 后，你可以问：土星在职业问题中的心理机制是什么？请比较不同教材的说法，并标出来源。</p></article>
+              <article class="ai-message assistant"><strong>玄枢整理 AI</strong><p>把原始案例、学习心得或零散想法发给我。我会区分事实、你的判断、待验证信息和可采取的行动，不会补造牌面或星盘数据。</p></article>
             </div>
-            <div class="ai-composer"><textarea id="aiQuestion" placeholder="向教材提问，或粘贴一个案例让我结合教材分析…"></textarea><button id="askAIButton">发送</button></div>
-            <div class="ai-prompts"><button data-ai-prompt="比较《78度的智慧》和《塔罗图形密钥》对逆位的理解。">比较两本书</button><button data-ai-prompt="把相关教材观点整理成五层知识卡。">生成知识卡</button><button data-ai-prompt="请用象征、机制、行动三层分析这个案例。">辅助案例判断</button></div>
+            <div class="organize-type-row"><label>整理为 <select id="organizeType"><option value="case">标准案例</option><option value="knowledge">五层知识卡</option><option value="rule">判断规则</option><option value="content">内容选题</option><option value="general">清晰笔记</option></select></label><button id="copyAIResult">复制结果</button></div>
+            <div class="ai-composer"><textarea id="aiQuestion" placeholder="直接粘贴或口述原始内容，顺序混乱也没关系…"></textarea><button id="askAIButton">帮我整理</button></div>
+            <div class="ai-prompts"><button data-ai-prompt="这是一个案例：">整理案例</button><button data-ai-prompt="这是我的学习心得：">整理知识卡</button><button data-ai-prompt="这是我反复验证出的判断规律：">提炼规则</button><button data-ai-prompt="把这个案例转化成小红书选题：">生成内容</button></div>
           </section>
         </div>
       </section>
@@ -262,7 +263,7 @@
         </div>
         <div class="error-insight"><span>△</span><div><strong>当前高频误差：时间判断偏快</strong><p>已有记录显示，需要特别检查土星行运与现实条件造成的延迟。</p></div></div>
         <div class="error-table-wrap">
-          <table class="error-table"><thead><tr><th>关联案例</th><th>问题</th><th>我的判断</th><th>实际结果</th><th>错在哪里</th><th>原因</th></tr></thead><tbody id="errorTableBody"></tbody></table>
+          <table class="error-table"><thead><tr><th>关联案例</th><th>问题</th><th>我的判断</th><th>实际结果</th><th>错在哪里</th><th>原因</th><th>操作</th></tr></thead><tbody id="errorTableBody"></tbody></table>
         </div>
       </section>
     </main>
@@ -289,7 +290,7 @@
             <button data-prompt="后来回访时，当事人告诉我…">补充回访</button>
           </div>
           <button class="organize-button" id="organizeButton"><span>✦</span> 帮我整理</button>
-          <p class="local-hint">未连接时使用本地整理；连接教材 AI 后可进一步结合资料分析。</p>
+          <p class="local-hint">未连接时使用本地规则整理；连接整理 AI 后可理解更复杂的口述。</p>
         </section>
         <section class="preview-panel">
           <div class="preview-header"><div><span class="status-dot"></span>结构化预览</div><small>可在保存前修改</small></div>

@@ -44,10 +44,12 @@ let deferredInstallPrompt = null;
 let aiEndpoint = localStorage.getItem("xuanshu-ai-endpoint") || "";
 let aiAccessToken = localStorage.getItem("xuanshu-ai-access-token") || "";
 let aiMessages = [];
+let lastAIResult = "";
 const savedKnowledge = JSON.parse(localStorage.getItem("xuanshu-knowledge") || "[]");
+const deletedKnowledgeIds = new Set(JSON.parse(localStorage.getItem("xuanshu-deleted-knowledge") || "[]"));
 const savedKnowledgeMap = new Map(savedKnowledge.map(item => [item.id, item]));
-let knowledge = (window.SEED_KNOWLEDGE || []).map(item => savedKnowledgeMap.has(item.id) ? { ...item, ...savedKnowledgeMap.get(item.id) } : item);
-knowledge.push(...savedKnowledge.filter(item => !knowledge.some(seed => seed.id === item.id)));
+let knowledge = (window.SEED_KNOWLEDGE || []).filter(item => !deletedKnowledgeIds.has(item.id)).map(item => savedKnowledgeMap.has(item.id) ? { ...item, ...savedKnowledgeMap.get(item.id) } : item);
+knowledge.push(...savedKnowledge.filter(item => !deletedKnowledgeIds.has(item.id) && !knowledge.some(seed => seed.id === item.id)));
 let knowledgeSystemFilter = "全部体系";
 let knowledgeCategoryFilter = "全部分类";
 let rules = JSON.parse(localStorage.getItem("xuanshu-rules") || "null") || [
@@ -96,7 +98,7 @@ function render() {
     <span class="pill ${item.type === "占星" ? "astrology" : "tarot"}">${escapeHtml(item.type)}</span>
     <div><h3>${escapeHtml(item.title)}</h3><p>人物 ${escapeHtml(item.person || "未记录")} · ${escapeHtml(item.question)}</p></div>
     <small>${escapeHtml(item.theme)}</small><small class="status">${escapeHtml(item.status)}</small>
-    <div class="case-actions"><button data-view-case="${item.id}" title="${escapeHtml(item.mechanism || item.insight)}">${escapeHtml(item.id)}</button><button data-case-to-content="${item.id}">转内容</button></div>
+    <div class="case-actions"><button data-view-case="${item.id}" title="${escapeHtml(item.mechanism || item.insight)}">${escapeHtml(item.id)}</button><button data-case-to-content="${item.id}">转内容</button><button class="danger-action" data-delete-case="${item.id}">删除</button></div>
   </article>`).join("");
   $("#emptyState").classList.toggle("hidden", filtered.length > 0);
 
@@ -129,7 +131,7 @@ function renderKnowledge() {
   $("#knowledgeCardGrid").innerHTML = shown.map(item => `<article class="knowledge-card-item" data-knowledge-id="${item.id}">
     <header><span>${escapeHtml(item.system)}</span><small>${escapeHtml(item.category)}</small></header>
     <h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.mechanism)}</p>
-    <footer><span>${escapeHtml(item.status)}</span><b>${item.cases && item.cases.length ? `${item.cases.length} 个案例` : "待关联案例"}</b></footer>
+    <footer><span>${escapeHtml(item.status)}</span><div class="card-actions"><button data-edit-knowledge="${item.id}">修改</button><button class="danger-action" data-delete-knowledge="${item.id}">删除</button></div></footer>
   </article>`).join("");
   $("#knowledgeEmpty").classList.toggle("hidden", shown.length > 0);
 }
@@ -141,18 +143,47 @@ function openKnowledgeCard(id) {
   $("#readerContent").innerHTML = `<pre>${escapeHtml(detail)}</pre>`; $("#shareResource").classList.add("hidden"); $("#downloadResource").classList.add("hidden"); $("#reader").classList.remove("hidden"); document.body.style.overflow="hidden";
 }
 
+function saveKnowledge() {
+  localStorage.setItem("xuanshu-knowledge", JSON.stringify(knowledge));
+  localStorage.setItem("xuanshu-deleted-knowledge", JSON.stringify([...deletedKnowledgeIds]));
+  renderKnowledgeCategories(); renderKnowledge(); render();
+}
+
+function addKnowledgeCard() {
+  const title = prompt("知识卡标题："); if (!title) return;
+  const system = prompt("体系：占星 / 塔罗 / 数字命理", "占星") || "未分类";
+  const category = prompt("分类：", "自定义") || "自定义";
+  const basic = prompt("① 基础象征：", "") || "待补充";
+  const mechanism = prompt("② 心理 / 运作机制：", "") || "待补充";
+  const reality = prompt("③ 现实表现：", "") || "待补充";
+  knowledge.unshift({ id:`K-CUSTOM-${Date.now()}`, system, category, title, basic, mechanism, reality, conditions:["待补充判断条件"], cases:[], sources:["个人笔记"], status:"整理中", aliases:[] });
+  saveKnowledge(); showToast("知识卡已新增");
+}
+
+function editKnowledgeCard(id) {
+  const item = knowledge.find(card => card.id === id); if (!item) return;
+  const title = prompt("知识卡标题：", item.title); if (!title) return;
+  item.title = title; item.basic = prompt("① 基础象征：", item.basic) || item.basic; item.mechanism = prompt("② 心理 / 运作机制：", item.mechanism) || item.mechanism; item.reality = prompt("③ 现实表现：", item.reality) || item.reality;
+  item.status = "已修改"; saveKnowledge(); showToast("知识卡已修改");
+}
+
+function deleteKnowledgeCard(id) {
+  const item = knowledge.find(card => card.id === id); if (!item || !confirm(`确定删除知识卡“${item.title}”吗？`)) return;
+  deletedKnowledgeIds.add(id); knowledge = knowledge.filter(card => card.id !== id); saveKnowledge(); showToast("知识卡已删除");
+}
+
 function renderOSLibraries() {
   $("#ruleCountBadge").textContent = rules.length;
   $("#errorCountBadge").textContent = errors.length;
   $("#contentCountBadge").textContent = contents.length;
   $("#astRuleCount").textContent = rules.filter(item => item.system === "占星").length;
   $("#tarotRuleCount").textContent = rules.filter(item => item.system === "塔罗").length;
-  $("#ruleGrid").innerHTML = rules.map(item => `<article class="rule-card"><header><span class="rule-id">${item.id}</span><span class="rule-system">${item.system}</span></header><div class="rule-body"><h3>${escapeHtml(item.title)}</h3><blockquote>${escapeHtml(item.statement)}</blockquote><div class="rule-observe">${item.observe.map(value => `<span>${escapeHtml(value)}</span>`).join("")}</div><div class="formula">${escapeHtml(item.formula).replace(/\n/g,"<br>")}</div></div><footer><span>关联 ${item.cases.join(" · ")}</span><span>${item.confidence}</span></footer></article>`).join("");
-  $("#errorTableBody").innerHTML = errors.map(item => `<tr><td>${escapeHtml(item.caseId)}</td><td>${escapeHtml(item.question)}</td><td>${escapeHtml(item.judgment)}</td><td>${escapeHtml(item.actual)}</td><td>${escapeHtml(item.mistake)}</td><td class="error-reason">${escapeHtml(item.reason)}</td></tr>`).join("");
+  $("#ruleGrid").innerHTML = rules.map(item => `<article class="rule-card"><header><span class="rule-id">${item.id}</span><span class="rule-system">${item.system}</span></header><div class="rule-body"><h3>${escapeHtml(item.title)}</h3><blockquote>${escapeHtml(item.statement)}</blockquote><div class="rule-observe">${item.observe.map(value => `<span>${escapeHtml(value)}</span>`).join("")}</div><div class="formula">${escapeHtml(item.formula).replace(/\n/g,"<br>")}</div></div><footer><span>关联 ${item.cases.join(" · ")}</span><div class="card-actions"><span>${item.confidence}</span><button class="danger-action" data-delete-rule="${item.id}">删除</button></div></footer></article>`).join("");
+  $("#errorTableBody").innerHTML = errors.map((item,index) => `<tr><td>${escapeHtml(item.caseId)}</td><td>${escapeHtml(item.question)}</td><td>${escapeHtml(item.judgment)}</td><td>${escapeHtml(item.actual)}</td><td>${escapeHtml(item.mistake)}</td><td class="error-reason">${escapeHtml(item.reason)}</td><td><button class="table-delete" data-delete-error="${index}">删除</button></td></tr>`).join("");
   const statuses = ["选题池","创作中","已完成"];
   $("#contentBoard").innerHTML = statuses.map(status => {
     const items = contents.filter(item => item.status === status);
-    return `<section class="board-column"><header>${status}<span>${items.length}</span></header>${items.map(item => `<article class="content-card"><span class="platform">${escapeHtml(item.platform)}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.angle)}</p><footer>来源：${escapeHtml(item.source)}</footer></article>`).join("")}</section>`;
+    return `<section class="board-column"><header>${status}<span>${items.length}</span></header>${items.map(item => `<article class="content-card"><span class="platform">${escapeHtml(item.platform)}</span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.angle)}</p><footer><span>来源：${escapeHtml(item.source)}</span><button class="danger-action" data-delete-content="${item.id}">删除</button></footer></article>`).join("")}</section>`;
   }).join("");
 }
 
@@ -250,6 +281,8 @@ $$('[data-close-modal]').forEach(item => item.addEventListener('click', closeMod
 $("#organizeButton").addEventListener("click", organizeNarrativeSmart);
 $("#globalSearch").addEventListener("input", () => { render(); if ($("#globalSearch").value) switchView("cases"); });
 $("#caseList").addEventListener("click", event => {
+  const deleteButton = event.target.closest("[data-delete-case]");
+  if (deleteButton) { const item=cases.find(record=>record.id===deleteButton.dataset.deleteCase); if(item && confirm(`确定删除 ${item.id}｜${item.title} 吗？`)){ cases=cases.filter(record=>record.id!==item.id); localStorage.setItem("xuanshu-cases",JSON.stringify(cases)); render(); showToast("案例已删除"); } return; }
   const contentButton = event.target.closest("[data-case-to-content]");
   if (contentButton) {
     const item = cases.find(record => record.id === contentButton.dataset.caseToContent);
@@ -309,7 +342,12 @@ $("#knowledgeSearch").addEventListener("input", renderKnowledge);
 $("#knowledgeSystem").addEventListener("change", event => { knowledgeSystemFilter = event.target.value; knowledgeCategoryFilter = "全部分类"; renderKnowledgeCategories(); renderKnowledge(); });
 $("#knowledgeCategory").addEventListener("change", event => { knowledgeCategoryFilter = event.target.value; renderKnowledge(); });
 $("#resetKnowledgeFilter").addEventListener("click", () => { knowledgeSystemFilter="全部体系"; knowledgeCategoryFilter="全部分类"; $("#knowledgeSystem").value="全部体系"; $("#knowledgeSearch").value=""; renderKnowledgeCategories(); renderKnowledge(); });
-$("#knowledgeCardGrid").addEventListener("click", event => { const card=event.target.closest("[data-knowledge-id]"); if(card) openKnowledgeCard(card.dataset.knowledgeId); });
+$("#newKnowledgeButton").addEventListener("click", addKnowledgeCard);
+$("#knowledgeCardGrid").addEventListener("click", event => {
+  const deleteButton=event.target.closest("[data-delete-knowledge]"); if(deleteButton){ deleteKnowledgeCard(deleteButton.dataset.deleteKnowledge); return; }
+  const editButton=event.target.closest("[data-edit-knowledge]"); if(editButton){ editKnowledgeCard(editButton.dataset.editKnowledge); return; }
+  const card=event.target.closest("[data-knowledge-id]"); if(card) openKnowledgeCard(card.dataset.knowledgeId);
+});
 $$('[data-knowledge-category]').forEach(button => button.addEventListener("click", () => { knowledgeCategoryFilter=button.dataset.knowledgeCategory; knowledgeSystemFilter=button.closest(".astrology-tree") ? "占星" : "塔罗"; $("#knowledgeSystem").value=knowledgeSystemFilter; renderKnowledgeCategories(); $("#knowledgeCategory").value=knowledgeCategoryFilter; renderKnowledge(); document.querySelector(".knowledge-toolbar").scrollIntoView({behavior:"smooth",block:"start"}); }));
 
 // 教材文件使用 IndexedDB 保存 Blob，适合离线和较大文件；元数据与文件保持在同一记录中。
@@ -381,12 +419,11 @@ function renderResources() {
   $("#resourceGrid").innerHTML = shown.map(item => {
     const kindClass = item.kind === "PDF" ? "pdf" : item.kind === "EPUB" ? "epub" : item.kind === "图片" ? "image" : "";
     const ready = item.available !== false && (item.blob || item.url);
-    const aiState = item.aiIndexed ? '<span class="ai-indexed">AI 已学习</span>' : (ready ? `<button data-index-resource="${item.id}">交给 AI</button>` : "");
     return `<article class="resource-card ${ready ? "" : "catalog-only"}">
       <div class="resource-cover ${kindClass}">${escapeHtml(item.kind)}</div>
       <select class="resource-category" data-category-id="${item.id}" aria-label="资料分类" ${item.catalog ? "disabled" : ""}><option ${item.category === "未分类" ? "selected" : ""}>未分类</option><option ${item.category === "占星" ? "selected" : ""}>占星</option><option ${item.category === "塔罗" ? "selected" : ""}>塔罗</option><option ${item.category === "数字命理" ? "selected" : ""}>数字命理</option></select>
       <h3 title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</h3><p>${formatBytes(item.size)} · ${escapeHtml(item.topic || (item.bundled ? "内置教材" : "本地导入"))}</p>
-      <div class="resource-actions">${ready ? `<button data-open-resource="${item.id}">打开</button><button data-share-resource="${item.id}">微信读书</button>${aiState}${item.catalog ? "" : `<button data-delete-resource="${item.id}">删除</button>`}` : '<label class="inline-import">导入原文件<input type="file" hidden data-resource-upload></label><span>书目已加入</span>'}</div>
+      <div class="resource-actions">${ready ? `<button data-open-resource="${item.id}">打开</button><button data-share-resource="${item.id}">微信读书</button>${item.catalog ? "" : `<button data-delete-resource="${item.id}">删除</button>`}` : '<label class="inline-import">导入原文件<input type="file" hidden data-resource-upload></label><span>书目已加入</span>'}</div>
     </article>`;
   }).join("");
   const totalSize = resources.filter(item => item.available !== false).reduce((sum, item) => sum + item.size, 0);
@@ -469,7 +506,6 @@ $$('[data-resource-filter]').forEach(chip => chip.addEventListener("click", () =
 $("#resourceGrid").addEventListener("click", async event => {
   const openButton = event.target.closest("[data-open-resource]"); if (openButton) openResource(openButton.dataset.openResource);
   const shareButton = event.target.closest("[data-share-resource]"); if (shareButton) shareToWeRead(shareButton.dataset.shareResource);
-  const indexButton = event.target.closest("[data-index-resource]"); if (indexButton) indexResourceForAI(indexButton.dataset.indexResource);
   const deleteButton = event.target.closest("[data-delete-resource]");
   if (deleteButton && confirm("确定从此设备删除这份资料吗？")) { await removeResource(deleteButton.dataset.deleteResource); await readResources(); showToast("资料已删除"); }
 });
@@ -526,28 +562,16 @@ async function testAIConnection() {
   catch (error) { renderAIState(error.message); showToast("AI 连接失败"); }
 }
 
-async function indexResourceForAI(id) {
-  const resource = resources.find(item => item.id === id);
-  if (!resource || !resource.blob) { showToast("请先在此设备导入教材原文件"); return; }
-  if (!aiEndpoint) { switchView("assistant"); showToast("请先连接 AI 后端"); return; }
-  showToast(`正在把《${resource.name}》交给 AI…`);
-  const form = new FormData(); form.append("file", resource.blob, resource.name); form.append("category", resource.category); form.append("topic", resource.topic || "");
-  try {
-    await aiRequest("/api/books", { method: "POST", body: form });
-    resource.aiIndexed = true; await saveResource(resource); await readResources(); showToast("教材已进入 AI 知识库");
-  } catch (error) { showToast(error.message); }
-}
-
-function appendAIMessage(role, text, sources = []) {
-  aiMessages.push({ role, text, sources });
-  $("#aiConversation").innerHTML = aiMessages.map(item => `<article class="ai-message ${item.role}"><strong>${item.role === "user" ? "你" : "玄枢 AI"}</strong><p>${escapeHtml(item.text).replace(/\n/g, "<br>")}</p>${item.sources && item.sources.length ? `<footer>参考教材：${item.sources.map(escapeHtml).join(" · ")}</footer>` : ""}</article>`).join("");
+function appendAIMessage(role, text) {
+  aiMessages.push({ role, text }); if (role === "assistant") lastAIResult = text;
+  $("#aiConversation").innerHTML = aiMessages.map(item => `<article class="ai-message ${item.role}"><strong>${item.role === "user" ? "你" : "玄枢整理 AI"}</strong><p>${escapeHtml(item.text).replace(/\n/g, "<br>")}</p></article>`).join("");
   $("#aiConversation").scrollTop = $("#aiConversation").scrollHeight;
 }
 
 async function askAI() {
   const input = $("#aiQuestion"); const question = input.value.trim(); if (!question) return;
   appendAIMessage("user", question); input.value = ""; $("#askAIButton").disabled = true;
-  try { const data = await aiRequest("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ question, history: aiMessages.slice(-8) }) }); appendAIMessage("assistant", data.answer, data.sources || []); }
+  try { const data = await aiRequest("/api/organize", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ text:question, type:$("#organizeType").value, history:aiMessages.slice(-6) }) }); appendAIMessage("assistant", data.answer); }
   catch (error) { appendAIMessage("assistant", `暂时无法回答：${error.message}`); }
   finally { $("#askAIButton").disabled = false; }
 }
@@ -555,7 +579,8 @@ async function askAI() {
 $("#testAIButton").addEventListener("click", testAIConnection);
 $("#askAIButton").addEventListener("click", askAI);
 $("#aiQuestion").addEventListener("keydown", event => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); askAI(); } });
-$$('[data-ai-prompt]').forEach(button => button.addEventListener("click", () => { $("#aiQuestion").value = button.dataset.aiPrompt; $("#aiQuestion").focus(); }));
+$$('[data-ai-prompt]').forEach((button,index) => button.addEventListener("click", () => { $("#aiQuestion").value = button.dataset.aiPrompt; $("#organizeType").value = ["case","knowledge","rule","content"][index] || "general"; $("#aiQuestion").focus(); }));
+$("#copyAIResult").addEventListener("click", async () => { if(!lastAIResult){ showToast("还没有可复制的整理结果"); return; } try{ await navigator.clipboard.writeText(lastAIResult); showToast("整理结果已复制"); } catch { showToast("请长按整理结果复制"); } });
 renderAIState();
 
 $("#newRuleButton").addEventListener("click", () => {
@@ -565,6 +590,7 @@ $("#newRuleButton").addEventListener("click", () => {
   rules.push({ id:`RULE-${system === "塔罗" ? "TAROT" : "AST"}-${String(next).padStart(3,"0")}`, system, title, statement:"待补充适用条件与判断逻辑。", observe:["待补充观察项"], formula:"象征 → 现实机制 → 行动", cases:[], confidence:"待验证" });
   localStorage.setItem("xuanshu-rules", JSON.stringify(rules)); renderOSLibraries(); showToast("判断规则草稿已创建");
 });
+$("#ruleGrid").addEventListener("click", event => { const button=event.target.closest("[data-delete-rule]"); if(!button) return; const item=rules.find(rule=>rule.id===button.dataset.deleteRule); if(item && confirm(`确定删除 ${item.id}｜${item.title} 吗？`)){ rules=rules.filter(rule=>rule.id!==item.id); localStorage.setItem("xuanshu-rules",JSON.stringify(rules)); renderOSLibraries(); showToast("判断规则已删除"); } });
 $("#newErrorButton").addEventListener("click", () => {
   const caseId = prompt("关联哪个 Case ID？", "CASE-0001"); if (!caseId) return;
   const actual = prompt("真实结果是什么？"); if (!actual) return;
@@ -572,8 +598,11 @@ $("#newErrorButton").addEventListener("click", () => {
   errors.unshift({ caseId, question:(source && source.question) || "待补充", judgment:(source && (source.prediction || source.insight)) || "待补充", actual, mistake:"待分析偏差", reason:"待复盘误差原因并修正规则" });
   localStorage.setItem("xuanshu-errors", JSON.stringify(errors)); renderOSLibraries(); showToast("误判记录已加入错误数据库");
 });
+$("#errorTableBody").addEventListener("click", event => { const button=event.target.closest("[data-delete-error]"); if(!button || !confirm("确定删除这条误判记录吗？")) return; errors.splice(Number(button.dataset.deleteError),1); localStorage.setItem("xuanshu-errors",JSON.stringify(errors)); renderOSLibraries(); showToast("误判记录已删除"); });
 $("#newContentButton").addEventListener("click", () => {
   const title = prompt("记录一个内容选题："); if (!title) return;
-  contents.unshift({ id:`CONTENT-${String(contents.length + 1).padStart(3,"0")}`, status:"选题池", platform:"小红书", title, source:"手动灵感", angle:"待从知识、规则或案例补充依据。" });
+  const next = Math.max(0,...contents.map(item=>Number(item.id.replace(/\D/g,""))||0))+1;
+  contents.unshift({ id:`CONTENT-${String(next).padStart(3,"0")}`, status:"选题池", platform:"小红书", title, source:"手动灵感", angle:"待从知识、规则或案例补充依据。" });
   localStorage.setItem("xuanshu-content", JSON.stringify(contents)); renderOSLibraries(); showToast("选题已加入内容库");
 });
+$("#contentBoard").addEventListener("click", event => { const button=event.target.closest("[data-delete-content]"); if(!button) return; const item=contents.find(content=>content.id===button.dataset.deleteContent); if(item && confirm(`确定删除选题“${item.title}”吗？`)){ contents=contents.filter(content=>content.id!==item.id); localStorage.setItem("xuanshu-content",JSON.stringify(contents)); renderOSLibraries(); showToast("内容选题已删除"); } });

@@ -1,4 +1,4 @@
-const CACHE = "xuanshu-shell-v7";
+const CACHE = "xuanshu-shell-v8";
 const SHELL = ["./", "./index.html", "./styles.css", "./knowledge-data.js", "./library-catalog.public.js", "./app.js", "./manifest.webmanifest", "./icons/icon.svg"];
 self.addEventListener("install", event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL))));
 self.addEventListener("activate", event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))));
